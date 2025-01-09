@@ -1,0 +1,89 @@
+import cv2
+import numpy as np
+
+# Create a blank image to represent the keyboard with a white background
+keyboard = np.full((1000, 1500, 3), (255, 255, 255), dtype=np.uint8)
+
+# Function to add heading to the center (without background color)
+def add_heading(text):
+    font = cv2.FONT_HERSHEY_SIMPLEX
+    font_scale = 1.5  # Reduced font size for smaller text
+    font_thickness = 3  # Reduced thickness for smaller text
+    text_color = (0, 255, 0)  # Green text
+
+    # Get text size
+    text_size = cv2.getTextSize(text, font, font_scale, font_thickness)[0]
+    text_width = text_size[0]
+    text_height = text_size[1]
+
+    # Calculate the x and y coordinates to center the text
+    text_x = (keyboard.shape[1] - text_width) // 2
+    text_y = text_height + 20  # Some padding from the top (e.g., 20 pixels)
+
+    # Put the text on the image (no background color this time)
+    cv2.putText(keyboard, text, (text_x, text_y), font, font_scale, text_color, font_thickness)
+
+# Define the function to create keys and add an image with a green border
+def letter(x, y, icon_path):
+    width = 160  # Reduced width
+    height = 160  # Reduced height
+    border = 1
+
+    # Draw the key (rectangle) with a blue border
+    cv2.rectangle(keyboard, (x + border, y + border), (x + width - border, y + height - border), (255, 0, 0), border)
+
+    # Load the image (icon) and resize it to fit the key
+    icon = cv2.imread(icon_path)  # Load the image passed as argument
+    if icon is None:
+        print(f"Error: Image {icon_path} not found.")
+        return
+    
+    icon_resized = cv2.resize(icon, (width, height))  # Resize the icon to fit the new dimensions
+
+    # Convert icon to grayscale and create a mask for blending
+    icon_gray = cv2.cvtColor(icon_resized, cv2.COLOR_BGR2GRAY)
+    _, mask = cv2.threshold(icon_gray, 1, 255, cv2.THRESH_BINARY)
+    mask_inv = cv2.bitwise_not(mask)
+
+    # Define the region of interest (ROI) on the keyboard where the icon will be placed
+    roi = keyboard[y:y + height, x:x + width]
+
+    # Create the background and foreground for blending
+    keyboard_bg = cv2.bitwise_and(roi, roi, mask=mask_inv)
+    icon_fg = cv2.bitwise_and(icon_resized, icon_resized, mask=mask)
+
+    # Add the icon to the region of interest
+    dst = cv2.add(keyboard_bg, icon_fg)
+    keyboard[y:y + height, x:x + width] = dst
+
+    # Draw a green border around the icon
+    cv2.rectangle(keyboard, (x, y), (x + width, y + height), (0, 255, 0), 2)  # Green border
+
+# Add smaller heading to the center of the GUI (without background)
+add_heading("Eye Blink System")
+
+# Example of calling the letter function with different images for each key
+icons = [
+    'eat.jpg', 'sleep.jpg', 'toilet.jpg', 'emer.jpg',
+    'img2.jpg', 'img3.jpg', 'img1.jpg', 'img2.jpg',
+    'img3.jpg', 'img1.jpg', 'img2.jpg', 'img3.jpg'
+]
+
+# Place icons dynamically
+for index, icon in enumerate(icons):
+    x = (index % 6) * 200 + 100  # Change the multiplier based on your layout
+    y = (index // 6) * 200 + 100
+    letter(x, y, icon)
+
+# Display the keyboard with a white background, smaller heading, and icons on keys
+while True:
+    cv2.imshow("keyboard", keyboard)
+    
+    # Wait for a key event for 100 ms
+    key = cv2.waitKey(100)
+    
+    # Exit if 'ESC' or 'q' is pressed, or if the window is closed
+    if key == 27 or key == ord('q'):
+        break
+
+cv2.destroyAllWindows()
